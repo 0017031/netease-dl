@@ -6,10 +6,9 @@
 """
 from setuptools import setup, find_packages
 
-
 setup(
     name='netease-dl',
-    version='1.0.2',
+    version='1.0.3',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -25,9 +24,8 @@ setup(
     ''',
 
     license='MIT',
-    author='ziwenxie',
-    author_email='ziwenxiecat@gmail.com',
-    url='https://github.com/ziwenxie/netease-dl',
-    description='一个基于命令行的网易云音乐下载器',
-    keywords=['music', 'netease', 'download', 'command tool'],
+    # original_author='ziwenxie',
+    # original_author_email='ziwenxiecat@gmail.com',
+    author='baic',
+    url='https://github.com/0017031/netease-dl',
 )
