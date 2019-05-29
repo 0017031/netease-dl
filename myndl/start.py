@@ -10,6 +10,7 @@ import signal
 import sys
 
 import click
+import win_unicode_console
 
 from .download import NetEase
 from .logger import get_logger
@@ -40,6 +41,7 @@ signal.signal(signal.SIGINT, signal_handler)
 @click.pass_context
 def cli(ctx, timeout, proxy, output, quiet, lyric, again):
     """A command tool to download NetEase-Music's songs."""
+    win_unicode_console.enable()
     ctx.obj = NetEase(timeout, proxy, output, quiet, lyric, again)
 
 

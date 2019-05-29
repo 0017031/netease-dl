@@ -6,25 +6,25 @@ netease-dl.weapi
 
 This module provides a Crawler class to get NetEase Music API.
 """
-import re
 import hashlib
+import io
 import os
+import re
 import sys
 
 import click
 import requests
-from requests.exceptions import RequestException, Timeout, ProxyError
 from requests.exceptions import ConnectionError as ConnectionException
+from requests.exceptions import RequestException, Timeout, ProxyError
 
 from .compat import cookielib
-from .encrypt import encrypted_request
-from .utils import Display
 from .config import headers, cookie_path, person_info_path
-from .logger import get_logger
+from .encrypt import encrypted_request
 from .exceptions import (
     SearchNotFound, SongNotAvailable, GetRequestIllegal, PostRequestIllegal)
+from .logger import get_logger
 from .models import Song, Album, Artist, Playlist, User
-
+from .utils import Display, get_valid_path_name
 
 LOG = get_logger(__name__)
 
@@ -308,12 +308,12 @@ class Crawler(object):
         result = self.post_request(url, params)
         song_url = result['data'][0]['url']  # download address
 
-        if song_url is None:  # Taylor Swift's song is not available
+        if song_url is None:
             LOG.warning(
-                'Song %s is not available due to copyright issue. => %s',
+                'Song %s is not available. => %s',
                 song_id, result)
             raise SongNotAvailable(
-                'Song {} is not available due to copyright issue.'.format(song_id))
+                'Song {} is not available:{}'.format(song_id, result))
         else:
             return song_url
 
@@ -334,6 +334,12 @@ class Crawler(object):
             lyric_info = 'Lyric not found.'
         return lyric_info
 
+    def get_info_by_songID(self, song_id):
+        #      http://music.163.com/api/song/detail?ids=[168158]&id=168158
+        url = 'http://music.163.com/api/song/detail?ids=[{i}]&id={i}'.format(i=song_id)
+        result = self.get_request(url)
+        return result
+
     @exception_handle
     def get_song_by_url(self, song_url, song_name, folder, lyric_info):
         """Download a song and save it to disk.
@@ -343,22 +349,21 @@ class Crawler(object):
         :params folder: storage path.
         :params lyric: lyric info.
         """
-
         if not os.path.exists(folder):
+            print (u'making new dir {}'.format(folder))
             os.makedirs(folder)
-        fpath = os.path.join(folder, song_name+'.mp3')
 
-        if sys.platform == 'win32' or sys.platform == 'cygwin':
-            valid_name = re.sub(r'[<>:"/\\|?*]', '', song_name)
-            if valid_name != song_name:
-                click.echo('{} will be saved as: {}.mp3'.format(song_name, valid_name))
-                fpath = os.path.join(folder, valid_name + '.mp3')
+        fpath = os.path.join(folder,
+                             get_valid_path_name(song_name)
+                             + '.mp3')
 
-        if not os.path.exists(fpath):
+        if os.path.exists(fpath):
+            print(u'skipping existing {}'.format(os.path.abspath(fpath)))
+        else:
             resp = self.download_session.get(
                 song_url, timeout=self.timeout, stream=True)
             length = int(resp.headers.get('content-length'))
-            label = 'Downloading {} {}kb'.format(song_name, int(length/1024))
+            label = u'Downloading {} {}kb'.format(song_name, int(length / 1024))
 
             with click.progressbar(length=length, label=label) as progressbar:
                 with open(fpath, 'wb') as song_file:
@@ -366,13 +371,14 @@ class Crawler(object):
                         if chunk:  # filter out keep-alive new chunks
                             song_file.write(chunk)
                             progressbar.update(1024)
+            print(os.path.abspath(fpath))
 
         if lyric_info:
             folder = os.path.join(folder, 'lyric')
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            fpath = os.path.join(folder, song_name+'.lrc')
-            with open(fpath, 'w') as lyric_file:
+            fpath = os.path.join(folder, song_name + '.lrc')
+            with io.open(fpath, 'w', encoding='utf8') as lyric_file:
                 lyric_file.write(lyric_info)
 
     def login(self):

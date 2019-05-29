@@ -7,7 +7,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='netease-dl',
+    name='myndl',
     version='1.0.3',
     packages=find_packages(),
     include_package_data=True,
@@ -16,16 +16,17 @@ setup(
         'pycryptodomex',
         'click>=5.1',
         'PrettyTable>=0.7.2',
+        'win_unicode_console',
     ],
 
     entry_points='''
         [console_scripts]
-        netease-dl=netease.start:cli
+        myndl=myndl.start:cli
     ''',
 
     license='MIT',
     # original_author='ziwenxie',
     # original_author_email='ziwenxiecat@gmail.com',
     author='baic',
-    url='https://github.com/0017031/netease-dl',
+    # url='https://github.com/0017031/myndl',
 )

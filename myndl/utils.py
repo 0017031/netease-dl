@@ -6,6 +6,8 @@ netease-dl.util
 
 This module provides a Display class to show results to user.
 """
+import re
+
 import click
 from prettytable import PrettyTable
 
@@ -35,7 +37,7 @@ class Display(object):
             while select_i < 1 or select_i > len(songs):
                 select_i = click.prompt('Error Select! Select Again', type=int)
 
-        song_id, song_name = songs[select_i-1]['id'], songs[select_i-1]['name']
+        song_id, song_name = songs[select_i - 1]['id'], songs[select_i - 1]['name']
         song = Song(song_id, song_name)
         return song
 
@@ -59,8 +61,8 @@ class Display(object):
             while select_i < 1 or select_i > len(albums):
                 select_i = click.prompt('Error Select! Select Again', type=int)
 
-        album_id = albums[select_i-1]['id']
-        album_name = albums[select_i-1]['name']
+        album_id = albums[select_i - 1]['id']
+        album_name = albums[select_i - 1]['name']
         album = Album(album_id, album_name)
         return album
 
@@ -84,8 +86,8 @@ class Display(object):
             while select_i < 1 or select_i > len(artists):
                 select_i = click.prompt('Error Select! Select Again', type=int)
 
-        artist_id = artists[select_i-1]['id']
-        artist_name = artists[select_i-1]['name']
+        artist_id = artists[select_i - 1]['id']
+        artist_name = artists[select_i - 1]['name']
         artist = Artist(artist_id, artist_name)
         return artist
 
@@ -109,8 +111,8 @@ class Display(object):
             while select_i < 1 or select_i > len(playlists):
                 select_i = click.prompt('Error Select! Select Again', type=int)
 
-        playlist_id = playlists[select_i-1]['id']
-        playlist_name = playlists[select_i-1]['name']
+        playlist_id = playlists[select_i - 1]['id']
+        playlist_name = playlists[select_i - 1]['name']
         playlist = Playlist(playlist_id, playlist_name)
         return playlist
 
@@ -134,7 +136,11 @@ class Display(object):
             while select_i < 1 or select_i > len(users):
                 select_i = click.prompt('Error Select! Select Again', type=int)
 
-        user_id = users[select_i-1]['userId']
-        user_name = users[select_i-1]['nickname']
+        user_id = users[select_i - 1]['userId']
+        user_name = users[select_i - 1]['nickname']
         user = User(user_id, user_name)
         return user
+
+
+def get_valid_path_name(path_name):
+    return re.sub(r'[<>:"/\\|?*]', '_', path_name)

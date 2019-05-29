@@ -1,3 +1,5 @@
+# from __future__ import print_function
+
 # -*- coding: utf-8 -*-
 
 """
@@ -7,17 +9,17 @@ netease-dl.download
 This module provides a NetEase class to directly support download operation.
 """
 import os
-import time
 import re
 import sys
+import time
 
 import click
 from requests.exceptions import RequestException
 
-from .weapi import Crawler
+from .utils import  get_valid_path_name
 from .config import person_info_path, cookie_path
 from .logger import get_logger
-
+from .weapi import Crawler
 
 LOG = get_logger(__name__)
 
@@ -30,7 +32,7 @@ def timeit(method):
         result = method(*args, **kwargs)
         end = time.time()
 
-        click.echo('Cost {}s'.format(int(end-start)))
+        click.echo('Cost {}s'.format(int(end - start)))
         return result
 
     return wrapper
@@ -66,9 +68,10 @@ def login(method):
 class NetEase(object):
     """Provide download operation."""
 
-    def __init__(self, timeout, proxy, folder, quiet, lyric, again):
+    def __init__(self, timeout, proxy, folder, quiet, lyric=True, again=False):
         self.crawler = Crawler(timeout, proxy)
-        self.folder = '.' if folder is None else folder
+        # self.folder = '.' if folder is None else folder
+        self.folder = os.getcwd() if folder is None else folder
         self.quiet = quiet
         self.lyric = lyric
         try:
@@ -105,9 +108,16 @@ class NetEase(object):
                 lyric_info = self.crawler.get_song_lyric(song_id)
             else:
                 lyric_info = None
-            song_name = song_name.replace('/', '')
-            song_name = song_name.replace('.', '')
+
+            song_info = self.crawler.get_info_by_songID(song_id)
+
+            if 'song' in song_name:
+                song_name = get_valid_path_name(song_info[u'songs'][0][u'name'])
+
+            # print(u'downloading {} ...'.format(song_name))
+            # click.echo(u'downloading {} ...'.format(song_name))
             self.crawler.get_song_by_url(url, song_name, folder, lyric_info)
+
         except RequestException as exception:
             click.echo(exception)
 
@@ -122,6 +132,7 @@ class NetEase(object):
         except RequestException as exception:
             click.echo(exception)
         else:
+            print (u'album.album_name=', album.album_name)
             self.download_album_by_id(album.album_id, album.album_name)
 
     @timeit
@@ -138,16 +149,17 @@ class NetEase(object):
         except RequestException as exception:
             click.echo(exception)
         else:
-            folder = os.path.join(self.folder, album_name)
+            folder = os.path.join(self.folder,
+                                  get_valid_path_name(album_name))
+
+            print (u'downloading to folder: \'', folder, "'")
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)
 
     def download_artist_by_search(self, artist_name):
         """Download a artist's top50 songs by his/her name.
-
         :params artist_name: artist name.
         """
-
         try:
             artist = self.crawler.search_artist(artist_name, self.quiet)
         except RequestException as exception:
