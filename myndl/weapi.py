@@ -11,6 +11,8 @@ import io
 import os
 import re
 import sys
+from random import randint
+from time import sleep
 
 import click
 import requests
@@ -24,7 +26,7 @@ from .exceptions import (
     SearchNotFound, SongNotAvailable, GetRequestIllegal, PostRequestIllegal)
 from .logger import get_logger
 from .models import Song, Album, Artist, Playlist, User
-from .utils import Display, get_valid_path_name
+from .utils import Display, convert_to_valid_dos_name
 
 LOG = get_logger(__name__)
 
@@ -76,6 +78,11 @@ class Crawler(object):
 
         resp = self.session.get(url, timeout=self.timeout,
                                 proxies=self.proxies)
+        # click.echo(resp.status_code)
+        if resp.status_code is not 200:
+            sleep(randint(1,5))
+            resp = self.session.get(url, timeout=self.timeout, proxies=self.proxies)
+
         result = resp.json()
         if result['code'] != 200:
             LOG.error('Return %s when try to get %s', result, url)
@@ -355,7 +362,7 @@ class Crawler(object):
         :return os.path.abspath(fpath)
         """
         fpath = os.path.join(folder,
-                             get_valid_path_name(song_name)
+                             convert_to_valid_dos_name(song_name)
                              + '_' + str(song_id) + '.mp3')
 
         if self.dry_run:
@@ -392,6 +399,28 @@ class Crawler(object):
                 lyric_file.write(lyric_info)
 
         return os.path.abspath(fpath)
+
+    @exception_handle
+    def download_song_by_url(self, song_url, path_to_save):
+        """Download a song and save it to disk.
+        :param song_url: download address.
+        :param path_to_save: path to store file
+        """
+        click.echo(os.path.abspath(path_to_save))
+
+        response = self.download_session.get(song_url, timeout=self.timeout, stream=True)
+
+        length = int(response.headers.get('content-length'))
+        label = u'Downloading {} {}kb'.format(os.path.basename(path_to_save), int(length / 1024))
+
+        with click.progressbar(length=length, label=label) as progressbar:
+            with open(path_to_save, 'wb') as song_file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:  # filter out keep-alive new chunks
+                        song_file.write(chunk)
+                        progressbar.update(1024)
+
+        return os.path.abspath(path_to_save)
 
     def login(self):
         """Login entrance."""

@@ -142,5 +142,5 @@ class Display(object):
         return user
 
 
-def get_valid_path_name(path_name):
+def convert_to_valid_dos_name(path_name):
     return re.sub(r'[<>:"/\\|?*]', '_', path_name)

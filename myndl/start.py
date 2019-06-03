@@ -36,13 +36,13 @@ signal.signal(signal.SIGINT, signal_handler)
 @click.option('-o', '--output', type=click.Path(exists=True),
               help='Specify the storage path.')
 @click.option('-q', '--quiet', is_flag=True, help='Automatically select the best one.')
-@click.option('-l', '--lyric', is_flag=True, help='Download lyric.')
+@click.option('-l', '--download-lyrics', is_flag=True, help='Download lyrics.', default=True)
 @click.option('-a', '--again', is_flag=True, help='Login Again.')
 @click.pass_context
-def cli(ctx, timeout, proxy, output, quiet, lyric, again):
+def cli(ctx, timeout, proxy, output, quiet, download_lyrics, again):
     """A command tool to download NetEase-Music's songs."""
-    win_unicode_console.enable()
-    ctx.obj = NetEase(timeout, proxy, output, quiet, lyric, again)
+    # win_unicode_console.enable()
+    ctx.obj = NetEase(timeout, proxy, output, quiet, download_lyrics, again)
 
 
 @cli.command()

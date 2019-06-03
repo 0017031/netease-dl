@@ -8,10 +8,12 @@ netease-dl.download
 
 This module provides a NetEase class to directly support download operation.
 """
+import io
 import os
 import re
 import sys
 import time
+from random import randint
 
 import click
 from mutagen.easyid3 import EasyID3
@@ -19,7 +21,7 @@ from requests.exceptions import RequestException
 
 from .config import person_info_path, cookie_path
 from .logger import get_logger
-from .utils import get_valid_path_name
+from .utils import convert_to_valid_dos_name
 from .weapi import Crawler
 
 LOG = get_logger(__name__)
@@ -70,13 +72,13 @@ class NetEase(object):
     """Provide download operation."""
 
     def __init__(self, timeout=60, proxy=None,
-                 folder=None, quiet=False, lyric=True,
+                 folder=None, quiet=False, download_lyrics=True,
                  again=False, dry_run=False):
         self.crawler = Crawler(timeout, proxy, dry_run)
         # self.folder = '.' if folder is None else folder
         self.folder = os.getcwd() if folder is None else folder
         self.quiet = quiet
-        self.lyric = lyric
+        self.download_lyrics = download_lyrics
         self.dry_run = dry_run
         try:
             if again:
@@ -104,31 +106,35 @@ class NetEase(object):
         :params song_name: song name.
         :params folder: storage path.
         """
-
+        
         try:
-            url = self.crawler.get_song_url(song_id)
-            if self.lyric:
-                # use old api
-                lyric_info = self.crawler.get_song_lyric(song_id)
-            else:
-                lyric_info = None
-
+            song_url = self.crawler.get_song_url(song_id)
             song_info = self.crawler.get_info_by_songID(song_id)
 
             if 'song' in song_name:
-                song_name = get_valid_path_name(song_info[u'songs'][0][u'name'])
+                song_name = convert_to_valid_dos_name(song_info[u'songs'][0][u'name'])
 
-            # print(u'downloading {} ...'.format(song_name))
-            # click.echo(u'downloading {} ...'.format(song_name))
-            mp3_file_path = self.crawler.get_song_by_url(url, song_name, song_id, folder, lyric_info)
+            song_path_to_save = os.path.join(os.path.abspath(folder), song_name + '.mp3')
+            lyrics_path_to_save = os.path.join(os.path.abspath(folder), song_name + '.lrc')
+
+            if self.download_lyrics:
+                with io.open(lyrics_path_to_save, 'w', encoding='utf8') as lyric_file:
+                    lyric_file.write(self.crawler.get_song_lyric(song_id))
+
+            if os.path.exists(song_path_to_save):
+                song_path_to_save = \
+                    os.path.join(os.path.abspath(folder), song_name + '_' +
+                                 song_info[u'songs'][0][u'artists'][0][u'name'] + '.mp3')
 
             if not self.dry_run:
-                myId3 = EasyID3(mp3_file_path)
+                mp3_saved = self.crawler.download_song_by_url(song_url, song_path_to_save)
+                myId3 = EasyID3(mp3_saved)
                 myId3["title"] = song_info[u'songs'][0][u'name']
                 myId3['album'] = song_info[u'songs'][0][u'album'][u'name']
                 myId3['organization'] = song_info[u'songs'][0][u'album'][u'company']
                 myId3['artist'] = song_info[u'songs'][0][u'artists'][0][u'name']
                 myId3.save(v2_version=3)
+                
 
         except RequestException as exception:
             click.echo(exception)
@@ -165,8 +171,11 @@ class NetEase(object):
                 album_name = album_name_from_id
 
             folder = os.path.join(self.folder,
-                                  get_valid_path_name(album_name)
+                                  convert_to_valid_dos_name(album_name)
                                   + '_album_' + str(album_id))
+
+            if not os.path.exists(folder):
+                os.makedirs(folder)
 
             click.echo(u'downloading to folder: {}'.format(folder))
             for song in songs:
@@ -200,6 +209,10 @@ class NetEase(object):
             if 'artist' in artist_name:
                 artist_name = artist_name_from_id
             folder = os.path.join(self.folder, artist_name)
+
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)
 
@@ -234,6 +247,10 @@ class NetEase(object):
             if 'playlist' in playlist_name:
                 playlist_name = playlist_name + '_' + playlist_name_from_id
             folder = os.path.join(self.folder, playlist_name)
+
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)
 
