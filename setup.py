@@ -17,6 +17,7 @@ setup(
         'click>=5.1',
         'PrettyTable>=0.7.2',
         'win_unicode_console',
+        'mutagen'
     ],
 
     entry_points='''

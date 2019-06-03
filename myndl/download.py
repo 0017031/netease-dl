@@ -14,11 +14,12 @@ import sys
 import time
 
 import click
+from mutagen.easyid3 import EasyID3
 from requests.exceptions import RequestException
 
-from .utils import  get_valid_path_name
 from .config import person_info_path, cookie_path
 from .logger import get_logger
+from .utils import get_valid_path_name
 from .weapi import Crawler
 
 LOG = get_logger(__name__)
@@ -68,12 +69,15 @@ def login(method):
 class NetEase(object):
     """Provide download operation."""
 
-    def __init__(self, timeout, proxy, folder, quiet, lyric=True, again=False):
-        self.crawler = Crawler(timeout, proxy)
+    def __init__(self, timeout=60, proxy=None,
+                 folder=None, quiet=False, lyric=True,
+                 again=False, dry_run=False):
+        self.crawler = Crawler(timeout, proxy, dry_run)
         # self.folder = '.' if folder is None else folder
         self.folder = os.getcwd() if folder is None else folder
         self.quiet = quiet
         self.lyric = lyric
+        self.dry_run = dry_run
         try:
             if again:
                 self.crawler.login()
@@ -116,7 +120,15 @@ class NetEase(object):
 
             # print(u'downloading {} ...'.format(song_name))
             # click.echo(u'downloading {} ...'.format(song_name))
-            self.crawler.get_song_by_url(url, song_name, folder, lyric_info)
+            mp3_file_path = self.crawler.get_song_by_url(url, song_name, song_id, folder, lyric_info)
+
+            if not self.dry_run:
+                myId3 = EasyID3(mp3_file_path)
+                myId3["title"] = song_info[u'songs'][0][u'name']
+                myId3['album'] = song_info[u'songs'][0][u'album'][u'name']
+                myId3['organization'] = song_info[u'songs'][0][u'album'][u'company']
+                myId3['artist'] = song_info[u'songs'][0][u'artists'][0][u'name']
+                myId3.save(v2_version=3)
 
         except RequestException as exception:
             click.echo(exception)
@@ -132,7 +144,7 @@ class NetEase(object):
         except RequestException as exception:
             click.echo(exception)
         else:
-            print (u'album.album_name=', album.album_name)
+            click.echo(u'album.album_name=', album.album_name)
             self.download_album_by_id(album.album_id, album.album_name)
 
     @timeit
@@ -142,17 +154,21 @@ class NetEase(object):
         :params album_id: album id.
         :params album_name: album name.
         """
-
         try:
             # use old api
-            songs = self.crawler.get_album_songs(album_id)
+            songs, album_name_from_id = self.crawler.get_album_songs(album_id)
         except RequestException as exception:
             click.echo(exception)
         else:
-            folder = os.path.join(self.folder,
-                                  get_valid_path_name(album_name))
 
-            print (u'downloading to folder: \'', folder, "'")
+            if 'album' in album_name:
+                album_name = album_name_from_id
+
+            folder = os.path.join(self.folder,
+                                  get_valid_path_name(album_name)
+                                  + '_album_' + str(album_id))
+
+            click.echo(u'downloading to folder: {}'.format(folder))
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)
 
@@ -177,10 +193,12 @@ class NetEase(object):
 
         try:
             # use old api
-            songs = self.crawler.get_artists_hot_songs(artist_id)
+            songs, artist_name_from_id = self.crawler.get_artists_hot_songs(artist_id)
         except RequestException as exception:
             click.echo(exception)
         else:
+            if 'artist' in artist_name:
+                artist_name = artist_name_from_id
             folder = os.path.join(self.folder, artist_name)
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)
@@ -209,11 +227,12 @@ class NetEase(object):
         """
 
         try:
-            songs = self.crawler.get_playlist_songs(
-                playlist_id)
+            songs, playlist_name_from_id = self.crawler.get_playlist_songs(playlist_id)
         except RequestException as exception:
             click.echo(exception)
         else:
+            if 'playlist' in playlist_name:
+                playlist_name = playlist_name + '_' + playlist_name_from_id
             folder = os.path.join(self.folder, playlist_name)
             for song in songs:
                 self.download_song_by_id(song.song_id, song.song_name, folder)

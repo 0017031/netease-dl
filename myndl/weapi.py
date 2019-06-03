@@ -55,13 +55,14 @@ def exception_handle(method):
 class Crawler(object):
     """NetEase Music API."""
 
-    def __init__(self, timeout=60, proxy=None):
+    def __init__(self, timeout=60, proxy=None, dry_run=False):
         self.session = requests.Session()
         self.session.headers.update(headers)
         self.session.cookies = cookielib.LWPCookieJar(cookie_path)
         self.download_session = requests.Session()
         self.timeout = timeout
         self.proxies = {'http': proxy, 'https': proxy}
+        self.dry_run = dry_run
 
         self.display = Display()
 
@@ -263,7 +264,8 @@ class Crawler(object):
 
         songs = result['playlist']['tracks']
         songs = [Song(song['id'], song['name']) for song in songs]
-        return songs
+        playlist_name_from_id = result[u'playlist'][u'name']
+        return songs, playlist_name_from_id
 
     def get_album_songs(self, album_id):
         """Get a album's all songs.
@@ -278,7 +280,8 @@ class Crawler(object):
 
         songs = result['album']['songs']
         songs = [Song(song['id'], song['name']) for song in songs]
-        return songs
+        album_name = result[u'album'][u'name']
+        return songs, album_name
 
     def get_artists_hot_songs(self, artist_id):
         """Get a artist's top50 songs.
@@ -292,7 +295,8 @@ class Crawler(object):
 
         hot_songs = result['hotSongs']
         songs = [Song(song['id'], song['name']) for song in hot_songs]
-        return songs
+        artist_name_from_id = result[u'artist'][u'name']
+        return songs, artist_name_from_id
 
     def get_song_url(self, song_id, bit_rate=320000):
         """Get a song's download address.
@@ -341,37 +345,43 @@ class Crawler(object):
         return result
 
     @exception_handle
-    def get_song_by_url(self, song_url, song_name, folder, lyric_info):
+    def get_song_by_url(self, song_url, song_name, song_id, folder, lyric_info):
         """Download a song and save it to disk.
 
         :params song_url: download address.
         :params song_name: song name.
         :params folder: storage path.
         :params lyric: lyric info.
+        :return os.path.abspath(fpath)
         """
-        if not os.path.exists(folder):
-            print (u'making new dir {}'.format(folder))
-            os.makedirs(folder)
-
         fpath = os.path.join(folder,
                              get_valid_path_name(song_name)
-                             + '.mp3')
+                             + '_' + str(song_id) + '.mp3')
+
+        if self.dry_run:
+            click.echo(os.path.abspath(fpath))
+            return os.path.abspath(fpath)
+
+        if not os.path.exists(folder):
+            click.echo(u'making new dir {}'.format(folder))
+            os.makedirs(folder)
 
         if os.path.exists(fpath):
-            print(u'skipping existing {}'.format(os.path.abspath(fpath)))
-        else:
-            resp = self.download_session.get(
-                song_url, timeout=self.timeout, stream=True)
-            length = int(resp.headers.get('content-length'))
-            label = u'Downloading {} {}kb'.format(song_name, int(length / 1024))
+            click.echo(u'skipping existing {}'.format(os.path.abspath(fpath)))
+            return os.path.abspath(fpath)
 
-            with click.progressbar(length=length, label=label) as progressbar:
-                with open(fpath, 'wb') as song_file:
-                    for chunk in resp.iter_content(chunk_size=1024):
-                        if chunk:  # filter out keep-alive new chunks
-                            song_file.write(chunk)
-                            progressbar.update(1024)
-            print(os.path.abspath(fpath))
+        click.echo(os.path.abspath(fpath))
+        resp = self.download_session.get(
+            song_url, timeout=self.timeout, stream=True)
+        length = int(resp.headers.get('content-length'))
+        label = u'Downloading {} {}kb'.format(song_name, int(length / 1024))
+
+        with click.progressbar(length=length, label=label) as progressbar:
+            with open(fpath, 'wb') as song_file:
+                for chunk in resp.iter_content(chunk_size=1024):
+                    if chunk:  # filter out keep-alive new chunks
+                        song_file.write(chunk)
+                        progressbar.update(1024)
 
         if lyric_info:
             folder = os.path.join(folder, 'lyric')
@@ -380,6 +390,8 @@ class Crawler(object):
             fpath = os.path.join(folder, song_name + '.lrc')
             with io.open(fpath, 'w', encoding='utf8') as lyric_file:
                 lyric_file.write(lyric_info)
+
+        return os.path.abspath(fpath)
 
     def login(self):
         """Login entrance."""
