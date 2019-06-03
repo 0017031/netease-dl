@@ -13,7 +13,6 @@ import os
 import re
 import sys
 import time
-from random import randint
 
 import click
 from mutagen.easyid3 import EasyID3
@@ -115,9 +114,13 @@ class NetEase(object):
                 song_name = convert_to_valid_dos_name(song_info[u'songs'][0][u'name'])
 
             song_path_to_save = os.path.join(os.path.abspath(folder), song_name + '.mp3')
-            lyrics_path_to_save = os.path.join(os.path.abspath(folder), song_name + '.lrc')
 
-            if self.download_lyrics:
+            if self.download_lyrics and not self.dry_run:
+                lyrics_dir_to_save  = os.path.join(os.path.abspath(folder), 'lyrics')
+                if not os.path.exists(lyrics_dir_to_save):
+                    os.makedirs(lyrics_dir_to_save)
+
+                lyrics_path_to_save = os.path.join(lyrics_dir_to_save, song_name + '.lrc')
                 with io.open(lyrics_path_to_save, 'w', encoding='utf8') as lyric_file:
                     lyric_file.write(self.crawler.get_song_lyric(song_id))
 
@@ -126,6 +129,7 @@ class NetEase(object):
                     os.path.join(os.path.abspath(folder), song_name + '_' +
                                  song_info[u'songs'][0][u'artists'][0][u'name'] + '.mp3')
 
+            click.echo(os.path.abspath(song_path_to_save))
             if not self.dry_run:
                 mp3_saved = self.crawler.download_song_by_url(song_url, song_path_to_save)
                 myId3 = EasyID3(mp3_saved)
@@ -150,7 +154,7 @@ class NetEase(object):
         except RequestException as exception:
             click.echo(exception)
         else:
-            click.echo(u'album.album_name=', album.album_name)
+            click.echo(u'album.album_name={}'.format(album.album_name))
             self.download_album_by_id(album.album_id, album.album_name)
 
     @timeit

@@ -7,7 +7,6 @@ netease-dl.weapi
 This module provides a Crawler class to get NetEase Music API.
 """
 import hashlib
-import io
 import os
 import re
 import sys
@@ -26,7 +25,7 @@ from .exceptions import (
     SearchNotFound, SongNotAvailable, GetRequestIllegal, PostRequestIllegal)
 from .logger import get_logger
 from .models import Song, Album, Artist, Playlist, User
-from .utils import Display, convert_to_valid_dos_name
+from .utils import Display
 
 LOG = get_logger(__name__)
 
@@ -80,7 +79,7 @@ class Crawler(object):
                                 proxies=self.proxies)
         # click.echo(resp.status_code)
         if resp.status_code is not 200:
-            sleep(randint(1,5))
+            sleep(randint(3, 5))
             resp = self.session.get(url, timeout=self.timeout, proxies=self.proxies)
 
         result = resp.json()
@@ -352,62 +351,11 @@ class Crawler(object):
         return result
 
     @exception_handle
-    def get_song_by_url(self, song_url, song_name, song_id, folder, lyric_info):
-        """Download a song and save it to disk.
-
-        :params song_url: download address.
-        :params song_name: song name.
-        :params folder: storage path.
-        :params lyric: lyric info.
-        :return os.path.abspath(fpath)
-        """
-        fpath = os.path.join(folder,
-                             convert_to_valid_dos_name(song_name)
-                             + '_' + str(song_id) + '.mp3')
-
-        if self.dry_run:
-            click.echo(os.path.abspath(fpath))
-            return os.path.abspath(fpath)
-
-        if not os.path.exists(folder):
-            click.echo(u'making new dir {}'.format(folder))
-            os.makedirs(folder)
-
-        if os.path.exists(fpath):
-            click.echo(u'skipping existing {}'.format(os.path.abspath(fpath)))
-            return os.path.abspath(fpath)
-
-        click.echo(os.path.abspath(fpath))
-        resp = self.download_session.get(
-            song_url, timeout=self.timeout, stream=True)
-        length = int(resp.headers.get('content-length'))
-        label = u'Downloading {} {}kb'.format(song_name, int(length / 1024))
-
-        with click.progressbar(length=length, label=label) as progressbar:
-            with open(fpath, 'wb') as song_file:
-                for chunk in resp.iter_content(chunk_size=1024):
-                    if chunk:  # filter out keep-alive new chunks
-                        song_file.write(chunk)
-                        progressbar.update(1024)
-
-        if lyric_info:
-            folder = os.path.join(folder, 'lyric')
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            fpath = os.path.join(folder, song_name + '.lrc')
-            with io.open(fpath, 'w', encoding='utf8') as lyric_file:
-                lyric_file.write(lyric_info)
-
-        return os.path.abspath(fpath)
-
-    @exception_handle
     def download_song_by_url(self, song_url, path_to_save):
         """Download a song and save it to disk.
         :param song_url: download address.
         :param path_to_save: path to store file
         """
-        click.echo(os.path.abspath(path_to_save))
-
         response = self.download_session.get(song_url, timeout=self.timeout, stream=True)
 
         length = int(response.headers.get('content-length'))

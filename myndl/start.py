@@ -10,11 +10,12 @@ import signal
 import sys
 
 import click
-import win_unicode_console
+
+if sys.version_info[0] < 3:
+    import win_unicode_console
 
 from .download import NetEase
 from .logger import get_logger
-
 
 LOG = get_logger(__name__)
 
@@ -38,11 +39,13 @@ signal.signal(signal.SIGINT, signal_handler)
 @click.option('-q', '--quiet', is_flag=True, help='Automatically select the best one.')
 @click.option('-l', '--download-lyrics', is_flag=True, help='Download lyrics.', default=True)
 @click.option('-a', '--again', is_flag=True, help='Login Again.')
+@click.option('-z', '--dry-run', is_flag=True, help='only query, no downloading.')
 @click.pass_context
-def cli(ctx, timeout, proxy, output, quiet, download_lyrics, again):
+def cli(ctx, timeout, proxy, output, quiet, download_lyrics, again, dry_run):
     """A command tool to download NetEase-Music's songs."""
-    # win_unicode_console.enable()
-    ctx.obj = NetEase(timeout, proxy, output, quiet, download_lyrics, again)
+    if sys.version_info[0] < 3:
+        win_unicode_console.enable()
+    ctx.obj = NetEase(timeout, proxy, output, quiet, download_lyrics, again, dry_run)
 
 
 @cli.command()
@@ -55,7 +58,7 @@ def song(netease, name, id):
         netease.download_song_by_search(name)
 
     if id:
-        netease.download_song_by_id(id, 'song'+str(id))
+        netease.download_song_by_id(id, 'song' + str(id))
 
 
 @cli.command()
@@ -68,7 +71,7 @@ def album(netease, name, id):
         netease.download_album_by_search(name)
 
     if id:
-        netease.download_album_by_id(id, 'album'+str(id))
+        netease.download_album_by_id(id, 'album' + str(id))
 
 
 @cli.command()
@@ -81,7 +84,7 @@ def artist(netease, name, id):
         netease.download_artist_by_search(name)
 
     if id:
-        netease.download_artist_by_id(id, 'artist'+str(id))
+        netease.download_artist_by_id(id, 'artist' + str(id))
 
 
 @cli.command()
@@ -94,7 +97,7 @@ def playlist(netease, name, id):
         netease.download_playlist_by_search(name)
 
     if id:
-        netease.download_playlist_by_id(id, 'playlist'+str(id))
+        netease.download_playlist_by_id(id, 'playlist' + str(id))
 
 
 @cli.command()
