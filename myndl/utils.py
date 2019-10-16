@@ -143,4 +143,19 @@ class Display(object):
 
 
 def convert_to_valid_dos_name(path_name):
-    return re.sub(r'[<>:"/\\|?*]', '_', path_name)
+    return re.sub(r'[<>:"/\\|?*]', '#', path_name).replace(" ", "_")
+    # return path_name.replace(" ", '_').replace("/", "#")
+
+"""
+https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+The following reserved characters:
+< (less than)
+> (greater than)
+: (colon)
+" (double quote)
+/ (forward slash)
+\ (backslash)
+| (vertical bar or pipe)
+? (question mark)
+* (asterisk)
+"""
