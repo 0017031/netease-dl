@@ -13,7 +13,7 @@ install_requires = [
     'pycryptodomex',
     'click>=5.1',
     'PrettyTable>=0.7.2',
-    'mutagen',
+    'mutagen', 'tqdm'
 ]
 
 if sys.version_info[0] < 3:
